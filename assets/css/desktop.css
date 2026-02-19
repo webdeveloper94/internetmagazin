@@ -1,0 +1,405 @@
+/**
+ * Uzum Market Style Desktop Design
+ */
+
+/* ==================== Desktop Navbar Redesign ==================== */
+.navbar {
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.navbar-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.75rem 0;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #7000ff;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.logo-icon {
+    font-size: 2rem;
+}
+
+.logo-text {
+    white-space: nowrap;
+}
+
+/* Catalog Button */
+.catalog-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #7000ff 0%, #5f00db 100%);
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.catalog-btn:hover {
+    background: linear-gradient(135deg, #5f00db 0%, #4f00b8 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(112, 0, 255, 0.3);
+    color: white;
+}
+
+.catalog-btn i {
+    font-size: 1.25rem;
+}
+
+/* Search Bar */
+.navbar-search {
+    flex: 1;
+    position: relative;
+    max-width: 600px;
+}
+
+.navbar-search i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 1.25rem;
+}
+
+.navbar-search input {
+    width: 100%;
+    padding: 0.875rem 1rem 0.875rem 3rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+}
+
+.navbar-search input:focus {
+    outline: none;
+    border-color: #7000ff;
+    box-shadow: 0 0 0 3px rgba(112, 0, 255, 0.1);
+}
+
+/* Right Section */
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.navbar-icon-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: #374151;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.navbar-icon-btn:hover {
+    background: #f3f4f6;
+    color: #7000ff;
+}
+
+.navbar-icon-btn i {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.navbar-icon-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.navbar-icon-badge {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
+    background: #ef4444;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 10px;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* ==================== Category Quick Nav ==================== */
+.category-quick-nav {
+    background: white;
+    border-bottom: 1px solid #f3f4f6;
+    padding: 0.75rem 0;
+}
+
+.category-quick-scroll {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 0.25rem;
+}
+
+.category-quick-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.category-quick-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: #f9fafb;
+    border-radius: 2rem;
+    text-decoration: none;
+    color: #374151;
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+.category-quick-item:hover {
+    background: #e5e7eb;
+    color: #7000ff;
+    transform: translateY(-2px);
+}
+
+.category-quick-icon {
+    font-size: 1.25rem;
+}
+
+/* ==================== Desktop Only / Mobile Only ==================== */
+.desktop-only {
+    display: flex;
+}
+
+.mobile-only {
+    display: none;
+}
+
+/* ==================== Responsive Breakpoints ==================== */
+@media (max-width: 1024px) {
+    .navbar-search {
+        max-width: 400px;
+    }
+
+    .navbar-icon-label {
+        display: none;
+    }
+
+    .navbar-icon-btn {
+        padding: 0.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .desktop-only {
+        display: none !important;
+    }
+
+    .mobile-only {
+        display: flex;
+    }
+
+    .navbar-content {
+        justify-content: space-between;
+    }
+
+    .navbar-brand {
+        font-size: 1.125rem;
+    }
+
+    .logo-icon {
+        font-size: 1.5rem;
+    }
+}
+
+/* ==================== Product Cards with Hearts ==================== */
+.products-grid .product-card {
+    position: relative;
+}
+
+.products-grid .favorite-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.products-grid .favorite-btn:hover {
+    transform: scale(1.1);
+    background: white;
+}
+
+.products-grid .favorite-btn i {
+    font-size: 1.25rem;
+    color: #ef4444;
+}
+
+.products-grid .favorite-btn.active i {
+    font-weight: 900;
+}
+
+.products-grid .favorite-btn:not(.active) i {
+    font-weight: 400;
+}
+
+/* ==================== Hero Slider Enhancement ==================== */
+.hero-slider {
+    margin-top: 0;
+    border-radius: 0;
+}
+
+/* ==================== Info Boxes Enhancement ==================== */
+.info-boxes {
+    background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+    padding: 4rem 0;
+}
+
+.info-box {
+    background: white;
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.info-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(112, 0, 255, 0.15);
+}
+
+.info-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.info-box h3 {
+    color: #7000ff;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+.info-box p {
+    color: #6b7280;
+    line-height: 1.6;
+}
+
+/* ==================== Products Section Enhancement ==================== */
+#products {
+    scroll-margin-top: 100px;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.section-header h2 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.section-header p {
+    font-size: 1.1rem;
+    color: #6b7280;
+}
+
+/* ==================== Fix Horizontal Scroll on Desktop ==================== */
+.product-scroll-container {
+    position: relative;
+    margin: 2rem 0;
+    padding: 2rem 0;
+    background: white;
+}
+
+.product-scroll-wrapper {
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db #f3f4f6;
+    cursor: grab;
+    user-select: none;
+}
+
+.product-scroll-wrapper:active {
+    cursor: grabbing;
+}
+
+.product-scroll-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.product-scroll-wrapper::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 10px;
+}
+
+.product-scroll-wrapper::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+}
+
+.product-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+.product-scroll {
+    display: flex !important;
+    gap: 1.5rem;
+    padding: 0 1rem 1rem;
+    width: max-content;
+}
+
+.product-scroll-card {
+    flex: 0 0 300px !important;
+    width: 300px;
+}
+
+.product-scroll-header {
+    padding: 0 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.product-scroll-header h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #1f2937;
+}
