@@ -1,128 +1,92 @@
 <?php
-/**
- * Login Sahifasi
- */
-require_once '../config/config.php';
-require_once '../config/database.php';
-require_once '../includes/session.php';
-require_once '../includes/functions.php';
+require_once __DIR__ . '/../includes/auth.php';
 
-// Agar login qilgan bo'lsa, asosiy sahifaga yo'naltirish
-if (is_logged_in()) {
-    redirect('index.php');
+if (isLoggedIn()) {
+    header('Location: ' . SITE_URL);
+    exit;
 }
 
-$errors = [];
+$error = '';
 
-// POST so'rovi kelsa
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = sanitize_input($_POST['username'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
     $password = $_POST['password'] ?? '';
-    $remember = isset($_POST['remember']);
-    
-    if (empty($username) || empty($password)) {
-        $errors[] = 'Login va parolni kiriting';
+
+    if (empty($phone) || empty($password)) {
+        $error = "Barcha maydonlarni to'ldiring";
     } else {
-        $db = Database::getInstance();
-        $sql = "SELECT * FROM users WHERE username = ?";
-        $user = $db->fetchOne($sql, [$username]);
-        
-        if ($user && password_verify($password, $user['password_hash'])) {
-            // Bloklangan foydalanuvchini tekshirish
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE phone = ?");
+        $stmt->execute([$phone]);
+        $user = $stmt->fetch();
+
+        if ($user && password_verify($password, $user['password'])) {
             if ($user['is_blocked']) {
-                $errors[] = 'Sizning hisobingiz bloklangan. Administrator bilan bog\'laning.';
+                $error = "Sizning hisobingiz bloklangan. Administratorga murojaat qiling.";
             } else {
-                // Session yaratish
-                session_regenerate_id(true);
                 $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['name'] = $user['name'];
-                $_SESSION['role'] = $user['role'];
-                
-                // Eslab qolish
-                if ($remember) {
-                    setcookie('remember_user', $user['id'], time() + (86400 * 30), '/');
-                }
-                
-                set_flash_message('success', 'Xush kelibsiz, ' . $user['name'] . '!');
-                
-                // Admin bo'lsa admin panelga, aks holda asosiy sahifaga
+                $_SESSION['user_role'] = $user['role'];
+                $_SESSION['user_name'] = $user['full_name'];
+
                 if ($user['role'] === 'admin') {
-                    redirect('admin/index.php');
+                    header('Location: ' . SITE_URL . '/admin/');
                 } else {
-                    redirect('index.php');
+                    header('Location: ' . SITE_URL);
                 }
+                exit;
             }
         } else {
-            $errors[] = 'Login yoki parol noto\'g\'ri';
+            $error = "Telefon raqam yoki parol noto'g'ri";
         }
     }
 }
+
+$pageTitle = "Kirish";
 ?>
 <!DOCTYPE html>
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tizimga Kirish - <?php echo SITE_NAME; ?></title>
-    <link rel="stylesheet" href="<?php echo SITE_URL; ?>/assets/css/style.css">
+    <title><?= $pageTitle ?> — Online Shop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="<?= SITE_URL ?>/assets/css/style.css" rel="stylesheet">
 </head>
 <body>
-    <div class="auth-container">
-        <div class="auth-box">
-            <div class="auth-header">
-                <h1>Tizimga Kirish</h1>
-                <p>Hisobingizga kiring</p>
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <h2><i class="bi bi-shop"></i> Online Shop</h2>
+        <p class="auth-subtitle">Hisobingizga kiring</p>
+
+        <?php if ($error): ?>
+            <div class="alert-custom alert-danger"><?= $error ?></div>
+        <?php endif; ?>
+
+        <form method="POST">
+            <div class="form-floating-custom">
+                <input type="tel" name="phone" id="phone" class="phone-mask" placeholder=" "
+                       value="<?= isset($phone) ? sanitize($phone) : '' ?>" required>
+                <label for="phone">Telefon raqam</label>
             </div>
-            
-            <?php if (!empty($errors)): ?>
-                <div class="alert alert-error">
-                    <ul>
-                        <?php foreach ($errors as $error): ?>
-                            <li><?php echo $error; ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            <?php endif; ?>
-            
-            <form method="POST" action="" class="auth-form">
-                <div class="form-group">
-                    <label for="username">Login</label>
-                    <input type="text" id="username" name="username" 
-                           value="<?php echo htmlspecialchars($username ?? ''); ?>" 
-                           required autofocus>
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">Parol</label>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                
-                <div class="form-group form-checkbox">
-                    <label>
-                        <input type="checkbox" name="remember">
-                        <span>Eslab qolish</span>
-                    </label>
-                </div>
-                
-                <button type="submit" class="btn btn-primary btn-block">
-                    Kirish
-                </button>
-            </form>
-            
-            <div class="auth-footer">
-                <p>Hisobingiz yo'qmi? <a href="register.php">Ro'yxatdan o'tish</a></p>
-                <p><a href="<?php echo SITE_URL; ?>">Asosiy sahifaga qaytish</a></p>
+
+            <div class="form-floating-custom">
+                <input type="password" name="password" id="password" placeholder=" " required>
+                <label for="password">Parol</label>
             </div>
-            
-            <div class="demo-credentials">
-                <p><strong>Demo login:</strong></p>
-                <p>Admin: <code>admin</code> / <code>admin123</code></p>
-                <p>User: <code>user1</code> / <code>password123</code></p>
-            </div>
+
+            <button type="submit" class="btn-primary-custom">
+                <i class="bi bi-box-arrow-in-right"></i> Kirish
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Hisobingiz yo'qmi? <a href="<?= SITE_URL ?>/auth/register.php">Ro'yxatdan o'tish</a>
         </div>
     </div>
-    
-    <script src="<?php echo SITE_URL; ?>/assets/js/main.js"></script>
+</div>
+
+<script src="<?= SITE_URL ?>/assets/js/main.js"></script>
 </body>
 </html>

@@ -1,177 +1,240 @@
 <?php
-/**
- * Admin: Kategoriyalar Boshqaruvi
- */
-require_once '../config/config.php';
-require_once '../config/database.php';
-require_once '../includes/session.php';
-require_once '../includes/functions.php';
+require_once __DIR__ . '/../includes/auth.php';
+requireAdmin();
 
-require_admin();
+$message = '';
+$messageType = '';
 
-$page_title = 'Kategoriyalar - Admin Panel';
-$db = Database::getInstance();
+// Handle actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
 
-// Kategoriyalarni olish
-$sql = "SELECT * FROM categories ORDER BY created_at DESC";
-$categories = $db->fetchAll($sql);
+    switch ($action) {
+        case 'add':
+            $name = trim($_POST['name']);
+            $description = trim($_POST['description'] ?? '');
+            $icon = null;
 
-require_once 'includes/header.php';
+            // Upload icon
+            if (!empty($_FILES['icon']['name'])) {
+                $uploadDir = __DIR__ . '/../uploads/categories/';
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                $ext = strtolower(pathinfo($_FILES['icon']['name'], PATHINFO_EXTENSION));
+                $allowed = ['jpg','jpeg','png','gif','svg','webp'];
+                if (in_array($ext, $allowed)) {
+                    $icon = uniqid('cat_') . '.' . $ext;
+                    move_uploaded_file($_FILES['icon']['tmp_name'], $uploadDir . $icon);
+                }
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO categories (name, icon, description) VALUES (?, ?, ?)");
+            $stmt->execute([$name, $icon, $description]);
+            $message = "Kategoriya qo'shildi";
+            $messageType = 'success';
+            break;
+
+        case 'update':
+            $catId = intval($_POST['cat_id']);
+            $name = trim($_POST['name']);
+            $description = trim($_POST['description'] ?? '');
+
+            // Upload new icon if provided
+            if (!empty($_FILES['icon']['name'])) {
+                $uploadDir = __DIR__ . '/../uploads/categories/';
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                $ext = strtolower(pathinfo($_FILES['icon']['name'], PATHINFO_EXTENSION));
+                $allowed = ['jpg','jpeg','png','gif','svg','webp'];
+                if (in_array($ext, $allowed)) {
+                    // Delete old icon
+                    $old = $pdo->prepare("SELECT icon FROM categories WHERE id = ?");
+                    $old->execute([$catId]);
+                    $oldIcon = $old->fetchColumn();
+                    if ($oldIcon && file_exists($uploadDir . $oldIcon)) {
+                        unlink($uploadDir . $oldIcon);
+                    }
+                    $icon = uniqid('cat_') . '.' . $ext;
+                    move_uploaded_file($_FILES['icon']['tmp_name'], $uploadDir . $icon);
+                    $stmt = $pdo->prepare("UPDATE categories SET name = ?, icon = ?, description = ? WHERE id = ?");
+                    $stmt->execute([$name, $icon, $description, $catId]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE categories SET name = ?, description = ? WHERE id = ?");
+                    $stmt->execute([$name, $description, $catId]);
+                }
+            } else {
+                $stmt = $pdo->prepare("UPDATE categories SET name = ?, description = ? WHERE id = ?");
+                $stmt->execute([$name, $description, $catId]);
+            }
+            $message = "Kategoriya yangilandi";
+            $messageType = 'success';
+            break;
+
+        case 'delete':
+            $catId = intval($_POST['cat_id']);
+            // Delete icon file
+            $old = $pdo->prepare("SELECT icon FROM categories WHERE id = ?");
+            $old->execute([$catId]);
+            $oldIcon = $old->fetchColumn();
+            if ($oldIcon) {
+                $iconPath = __DIR__ . '/../uploads/categories/' . $oldIcon;
+                if (file_exists($iconPath)) unlink($iconPath);
+            }
+            $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
+            $stmt->execute([$catId]);
+            $message = "Kategoriya o'chirildi";
+            $messageType = 'success';
+            break;
+    }
+}
+
+$categories = $pdo->query("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count FROM categories c ORDER BY c.name")->fetchAll();
+
+$adminPageTitle = 'Kategoriyalar';
+include __DIR__ . '/includes/header.php';
+include __DIR__ . '/includes/sidebar.php';
 ?>
 
-<div class="admin-header">
-    <h1>Kategoriyalar Boshqaruvi</h1>
-    <button class="btn btn-primary" onclick="showAddModal()">+ Yangi Kategoriya</button>
-</div>
-
-<div class="admin-card">
-    <div class="table-responsive">
-        <?php if ($categories && count($categories) > 0): ?>
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Icon</th>
-                        <th>Nom</th>
-                        <th>Tavsif</th>
-                        <th>Yaratilgan</th>
-                        <th>Amallar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($categories as $category): ?>
-                        <tr id="category-row-<?php echo $category['id']; ?>">
-                            <td><?php echo $category['id']; ?></td>
-                            <td><i class="bi <?php echo $category['icon'] ?: 'bi-box'; ?> category-icon-preview"></i></td>
-                            <td><?php echo htmlspecialchars($category['name']); ?></td>
-                            <td><?php echo htmlspecialchars($category['description'] ? mb_substr($category['description'], 0, 50) . '...' : '-'); ?></td>
-                            <td><?php echo format_date($category['created_at']); ?></td>
-                            <td>
-                                <div class="action-buttons">
-                                    <button class="btn btn-sm btn-primary edit-category-btn" 
-                                            data-id="<?php echo $category['id']; ?>"
-                                            data-name="<?php echo htmlspecialchars($category['name']); ?>"
-                                            data-icon="<?php echo htmlspecialchars($category['icon']); ?>"
-                                            data-description="<?php echo htmlspecialchars($category['description']); ?>">
-                                        Tahrirlash
-                                    </button>
-                                    <button class="btn btn-sm btn-danger delete-category-btn" 
-                                            data-id="<?php echo $category['id']; ?>">
-                                        O'chirish
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <p class="text-center">Kategoriyalar yo'q</p>
-        <?php endif; ?>
-    </div>
-</div>
-
-<!-- Add/Edit Modal -->
-<div id="categoryModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 id="modalTitle">Yangi Kategoriya</h2>
-            <span class="modal-close" onclick="closeModal()">&times;</span>
+<div class="admin-content">
+    <div class="admin-header">
+        <div>
+            <button class="btn btn-sm btn-outline-secondary d-lg-none me-2" onclick="toggleAdminSidebar()">
+                <i class="bi bi-list"></i>
+            </button>
+            <h3 class="d-inline"><i class="bi bi-grid"></i> Kategoriyalar</h3>
         </div>
-        <form id="categoryForm">
-            <input type="hidden" id="categoryId" name="id">
-            
-            <div class="form-group">
-                <label for="categoryName">Kategoriya Nomi *</label>
-                <input type="text" id="categoryName" name="name" required>
-            </div>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+            <i class="bi bi-plus-lg"></i> Qo'shish
+        </button>
+    </div>
 
-            <style>
-                .icon-selector {
-                    display: flex !important;
-                    flex-wrap: wrap !important;
-                    gap: 10px !important;
-                    padding: 15px !important;
-                    background: #f8fafc !important;
-                    border: 2px solid #e2e8f0 !important;
-                    border-radius: 0.5rem !important;
-                    max-height: 250px !important;
-                    overflow-y: auto !important;
-                    margin-top: 10px !important;
-                    justify-content: flex-start !important;
-                }
-                .icon-option {
-                    width: 45px !important;
-                    height: 45px !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    font-size: 1.5rem !important;
-                    cursor: pointer !important;
-                    border-radius: 0.5rem !important;
-                    border: 2px solid transparent !important;
-                    background: white !important;
-                    transition: all 0.2s !important;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
-                    color: #475569 !important;
-                }
-                .icon-option:hover {
-                    background: #f1f5f9 !important;
-                    color: #6366f1 !important;
-                    transform: translateY(-2px) !important;
-                }
-                .icon-option.selected {
-                    background: #eef2ff !important;
-                    border-color: #6366f1 !important;
-                    color: #4f46e5 !important;
-                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
-                }
-            </style>
+    <?php if ($message): ?>
+        <div class="alert alert-<?= $messageType ?> alert-dismissible fade show">
+            <?= $message ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
 
-            <div class="form-group">
-                <label>Icon Tanlang</label>
-                <div class="icon-selector" id="iconSelector">
-                    <?php
-                    $predefined_icons = [
-                        'bi-box', 'bi-fire', 'bi-phone', 'bi-shirt', 'bi-house', 'bi-bicycle', 'bi-book', 
-                        'bi-controller', 'bi-cup-hot', 'bi-apple', 'bi-luggage', 'bi-tools', 'bi-laptop', 
-                        'bi-watch', 'bi-headphones', 'bi-camera', 'bi-bag', 'bi-gem', 'bi-car-front', 'bi-plugin'
-                    ];
-                    foreach ($predefined_icons as $ico):
-                    ?>
-                        <div class="icon-option" data-icon="<?php echo $ico; ?>" onclick="handleIconSelect(this)">
-                            <i class="bi <?php echo $ico; ?>"></i>
-                        </div>
+    <div class="admin-table">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Icon</th>
+                    <th>Nomi</th>
+                    <th>Tavsif</th>
+                    <th>Mahsulotlar</th>
+                    <th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($categories)): ?>
+                    <tr><td colspan="6" class="text-center text-muted py-4">Kategoriyalar topilmadi</td></tr>
+                <?php else: ?>
+                    <?php foreach ($categories as $cat): ?>
+                    <tr>
+                        <td><?= $cat['id'] ?></td>
+                        <td>
+                            <?php if ($cat['icon']): ?>
+                                <img src="<?= SITE_URL ?>/uploads/categories/<?= $cat['icon'] ?>" 
+                                     style="width:36px;height:36px;object-fit:cover;border-radius:8px;">
+                            <?php else: ?>
+                                <div style="width:36px;height:36px;background:var(--bg);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                                    <i class="bi bi-folder" style="color:var(--primary);"></i>
+                                </div>
+                            <?php endif; ?>
+                        </td>
+                        <td><strong><?= sanitize($cat['name']) ?></strong></td>
+                        <td class="text-muted"><?= sanitize(mb_substr($cat['description'] ?? '', 0, 50)) ?></td>
+                        <td><span class="badge bg-primary"><?= $cat['product_count'] ?></span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCat<?= $cat['id'] ?>">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="POST" class="d-inline" onsubmit="return confirm('Ishonchingiz komilmi?')">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="cat_id" value="<?= $cat['id'] ?>">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+
+                            <!-- Edit Modal -->
+                            <div class="modal fade" id="editCat<?= $cat['id'] ?>" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="POST" enctype="multipart/form-data">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Kategoriyani tahrirlash</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <input type="hidden" name="action" value="update">
+                                                <input type="hidden" name="cat_id" value="<?= $cat['id'] ?>">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Nomi</label>
+                                                    <input type="text" name="name" class="form-control" value="<?= sanitize($cat['name']) ?>" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Icon (rasm)</label>
+                                                    <input type="file" name="icon" class="form-control" accept="image/*">
+                                                    <?php if ($cat['icon']): ?>
+                                                        <small class="text-muted">Hozirgi: <?= $cat['icon'] ?></small>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Tavsif</label>
+                                                    <textarea name="description" class="form-control" rows="3"><?= sanitize($cat['description'] ?? '') ?></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                                                <button type="submit" class="btn btn-primary">Saqlash</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
                     <?php endforeach; ?>
-                </div>
-                <input type="hidden" id="categoryIcon" name="icon" value="bi-box">
-            </div>
-
-            <script>
-                function handleIconSelect(element) {
-                    // Remove selected class from all options
-                    document.querySelectorAll('.icon-option').forEach(opt => {
-                        opt.classList.remove('selected');
-                    });
-                    // Add selected class to clicked option
-                    element.classList.add('selected');
-                    // Update hidden input
-                    const iconValue = element.getAttribute('data-icon');
-                    document.getElementById('categoryIcon').value = iconValue;
-                }
-            </script>
-            
-            <div class="form-group">
-                <label for="categoryDescription">Tavsif</label>
-                <textarea id="categoryDescription" name="description" rows="3"></textarea>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Bekor qilish</button>
-                <button type="submit" class="btn btn-primary">Saqlash</button>
-            </div>
-        </form>
+                <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </div>
 
-<?php require_once 'includes/footer.php'; ?>
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">Kategoriya qo'shish</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="add">
+                    <div class="mb-3">
+                        <label class="form-label">Nomi</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Icon (rasm)</label>
+                        <input type="file" name="icon" class="form-control" accept="image/*">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tavsif</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                    <button type="submit" class="btn btn-primary">Qo'shish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= SITE_URL ?>/assets/js/main.js"></script>
+</body>
+</html>

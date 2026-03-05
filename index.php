@@ -1,358 +1,235 @@
 <?php
-/**
- * Asosiy Sahifa - Home Page
- */
-require_once 'config/config.php';
-require_once 'config/database.php';
-require_once 'includes/session.php';
-require_once 'includes/functions.php';
+require_once __DIR__ . '/includes/auth.php';
 
-$page_title = 'Asosiy Sahifa - ' . SITE_NAME;
+$pageTitle = 'Bosh sahifa';
 
-// Eng yangi mahsulotlarni olish (12 ta)
-$db = Database::getInstance();
-$sql = "SELECT p.*, c.name as category_name 
-        FROM products p 
-        LEFT JOIN categories c ON p.category_id = c.id 
-        ORDER BY p.created_at DESC 
-        LIMIT 12";
-$products = $db->fetchAll($sql);
+// Search
+$searchQuery = isset($_GET['q']) ? trim($_GET['q']) : '';
+$viewCatalog = isset($_GET['view']) && $_GET['view'] === 'catalog';
 
-require_once 'includes/header.php';
+// Get categories
+$categories = $pdo->query("SELECT * FROM categories ORDER BY name")->fetchAll();
+
+// Get user favorites
+$userFavorites = [];
+if (isLoggedIn()) {
+    $favStmt = $pdo->prepare("SELECT product_id FROM favorites WHERE user_id = ?");
+    $favStmt->execute([$_SESSION['user_id']]);
+    $userFavorites = $favStmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// Get products
+if ($searchQuery) {
+    $stmt = $pdo->prepare("SELECT p.*, c.name as category_name, 
+                          (SELECT MIN(price) FROM product_sizes WHERE product_id = p.id) as min_size_price
+                          FROM products p 
+                          JOIN categories c ON p.category_id = c.id 
+                          WHERE p.name LIKE ? 
+                          ORDER BY p.created_at DESC");
+    $stmt->execute(["%{$searchQuery}%"]);
+    $products = $stmt->fetchAll();
+} else {
+    $products = $pdo->query("SELECT p.*, c.name as category_name,
+                            (SELECT MIN(price) FROM product_sizes WHERE product_id = p.id) as min_size_price
+                            FROM products p 
+                            JOIN categories c ON p.category_id = c.id 
+                            ORDER BY p.created_at DESC")->fetchAll();
+}
+
+include __DIR__ . '/includes/header.php';
+include __DIR__ . '/includes/navbar.php';
 ?>
 
-<!-- Slider -->
-<section class="hero-slider">
-    <div class="slider-container">
-        <div class="slide active" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            <div class="container">
-                <div class="slide-content">
-                    <h1 class="slide-title animate-fade-in">Yuqori Sifatli Mahsulotlar</h1>
-                    <p class="slide-text animate-fade-in-delay">Eng so'nggi texnologiyalar va trendlar</p>
-                    <a href="#products" class="btn btn-primary btn-lg animate-fade-in-delay-2">Xarid qilish</a>
-                </div>
-            </div>
+<div class="container page-wrapper">
+    <?php if ($searchQuery): ?>
+        <div class="section-title">
+            <h2><i class="bi bi-search"></i> "<?= sanitize($searchQuery) ?>" bo'yicha natijalar</h2>
         </div>
-        
-        <div class="slide" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-            <div class="container">
-                <div class="slide-content">
-                    <h1 class="slide-title">Arzon Narxlar</h1>
-                    <p class="slide-text">Sifatli mahsulotlar hamyonbop narxlarda</p>
-                    <a href="#products" class="btn btn-primary btn-lg">Katalogni ko'rish</a>
-                </div>
-            </div>
+    <?php elseif ($viewCatalog): ?>
+        <!-- Catalog View: Show categories grid -->
+        <div class="section-title">
+            <h2><i class="bi bi-grid-fill"></i> Katalog</h2>
         </div>
-        
-        <div class="slide" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-            <div class="container">
-                <div class="slide-content">
-                    <h1 class="slide-title">Tez Yetkazib Berish</h1>
-                    <p class="slide-text">Buyurtmangizni tezkor yetkazib beramiz</p>
-                    <a href="#products" class="btn btn-primary btn-lg">Buyurtma berish</a>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Slider Controls -->
-    <button class="slider-prev" onclick="changeSlide(-1)">&#10094;</button>
-    <button class="slider-next" onclick="changeSlide(1)">&#10095;</button>
-    
-    <!-- Slider Dots -->
-    <div class="slider-dots">
-        <span class="dot active" onclick="goToSlide(0)"></span>
-        <span class="dot" onclick="goToSlide(1)"></span>
-        <span class="dot" onclick="goToSlide(2)"></span>
-    </div>
-</section>
-
-<!-- Info Boxes -->
-<section class="info-boxes">
-    <div class="container">
-        <div class="info-grid">
-            <div class="info-box animate-on-scroll">
-                <div class="info-icon">✨</div>
-                <h3>Yuqori Sifat</h3>
-                <p>Barcha mahsulotlarimiz sifat sertifikatiga ega. Biz faqat eng yaxshi brendlar bilan ishlaymiz.</p>
-            </div>
-            
-            <div class="info-box animate-on-scroll">
-                <div class="info-icon">🚚</div>
-                <h3>Tez Yetkazish</h3>
-                <p>O'zbekiston bo'ylab 1-3 kun ichida yetkazib berish. Toshkent shahrida - 24 soat ichida!</p>
-            </div>
-            
-            <div class="info-box animate-on-scroll">
-                <div class="info-icon">💰</div>
-                <h3>Qulay To'lov</h3>
-                <p>Naqd pul yoki plastik karta orqali to'lash imkoniyati. Click, Payme, Uzum qo'llab-quvvatlanadi.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Statistics Section -->
-<section class="stats-section">
-    <div class="container">
-        <div class="stats-grid">
-            <div class="stat-item animate-on-scroll">
-                <div class="stat-icon">👥</div>
-                <div class="stat-number" data-target="1250">0</div>
-                <div class="stat-label">Baxtli Mijozlar</div>
-            </div>
-            <div class="stat-item animate-on-scroll">
-                <div class="stat-icon">📦</div>
-                <div class="stat-number" data-target="5000">0</div>
-                <div class="stat-label">Mahsulotlar</div>
-            </div>
-            <div class="stat-item animate-on-scroll">
-                <div class="stat-icon">⭐</div>
-                <div class="stat-number" data-target="98">0</div>
-                <div class="stat-label">% Mamnunlik</div>
-            </div>
-            <div class="stat-item animate-on-scroll">
-                <div class="stat-icon">🚚</div>
-                <div class="stat-number" data-target="24">0</div>
-                <div class="stat-label">Soatlik Yetkazish</div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Horizontal Product Scroll (Mobile Optimized) -->
-<section class="product-scroll-container">
-    <div class="product-scroll-header">
-        <h2>🔥 Ommabop Mahsulotlar</h2>
-    </div>
-    
-    <div class="product-scroll-wrapper">
-        <div class="product-scroll">
-            <?php
-            // Ommabop mahsulot lar (yangi qo'shilganlar)
-            $popular_sql = "SELECT p.*, c.name as category_name 
-                           FROM products p 
-                           LEFT JOIN categories c ON p.category_id = c.id 
-                           WHERE p.stock > 0
-                           ORDER BY p.created_at DESC 
-                           LIMIT 10";
-            $popular_products = $db->fetchAll($popular_sql);
-            
-            foreach ($popular_products as $product):
-                // Check if favorited
-                $is_favorited = false;
-                if (is_logged_in()) {
-                    $fav_check = $db->fetchOne(
-                        "SELECT id FROM favorites WHERE user_id = ? AND product_id = ?",
-                        [$_SESSION['user_id'], $product['id']]
-                    );
-                    $is_favorited = !empty($fav_check);
-                }
-            ?>
-                <div class="product-scroll-card">
-                    <div class="product-scroll-image">
-                        <?php if ($product['image']): ?>
-                            <img src="<?php echo SITE_URL . '/' . UPLOAD_PATH . $product['image']; ?>" 
-                                 alt="<?php echo htmlspecialchars($product['name']); ?>">
+        <?php if (!empty($categories)): ?>
+        <div class="row g-3 mb-4">
+            <?php foreach ($categories as $cat): ?>
+            <div class="col-6 col-md-4 col-lg-3">
+                <a href="<?= SITE_URL ?>/pages/category.php?id=<?= $cat['id'] ?>" class="text-decoration-none">
+                    <div class="product-card text-center" style="padding: 24px;">
+                        <?php if ($cat['icon']): ?>
+                            <img src="<?= SITE_URL ?>/uploads/categories/<?= $cat['icon'] ?>" 
+                                 alt="<?= sanitize($cat['name']) ?>"
+                                 style="width:64px;height:64px;object-fit:cover;border-radius:12px;margin-bottom:12px;">
                         <?php else: ?>
-                            <div class="product-placeholder">📦</div>
-                        <?php endif; ?>
-                        
-                        <!-- Favorite Button -->
-                        <?php if (is_logged_in()): ?>
-                            <button class="favorite-btn <?php echo $is_favorited ? 'active' : ''; ?>" 
-                                    data-product-id="<?php echo $product['id']; ?>">
-                                <i class="bi bi-heart-fill"></i>
-                            </button>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="product-scroll-info">
-                        <div class="product-scroll-name">
-                            <?php echo htmlspecialchars($product['name']); ?>
-                        </div>
-                        <div class="product-scroll-price">
-                            <?php echo format_price($product['price']); ?>
-                        </div>
-                        
-                        <?php if (is_logged_in()): ?>
-                            <button class="product-scroll-cart-btn add-to-cart" 
-                                    data-product-id="<?php echo $product['id']; ?>">
-                                <i class="bi bi-cart-plus"></i> Savatga
-                            </button>
-                        <?php else: ?>
-                            <a href="<?php echo SITE_URL; ?>/auth/login.php" 
-                               class="product-scroll-cart-btn">
-                                Kirish
-                            </a>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-</section>
-
-<!-- Category Showcase -->
-<section class="category-showcase">
-    <div class="container">
-        <div class="section-header">
-            <h2>Kategoriyalar</h2>
-            <p>Kerakli mahsulotingizni toping</p>
-        </div>
-        
-        <?php
-        $categories_sql = "SELECT * FROM categories ORDER BY name";
-        $categories = $db->fetchAll($categories_sql);
-        ?>
-        
-        <div class="category-grid">
-            <?php foreach ($categories as $category): ?>
-                <a href="#products" class="category-card animate-on-scroll">
-                    <div class="category-icon">
-                        <i class="bi <?php echo $category['icon'] ?: 'bi-box'; ?>"></i>
-                    </div>
-                    <h3><?php echo htmlspecialchars($category['name']); ?></h3>
-                    <?php if ($category['description']): ?>
-                        <p><?php echo htmlspecialchars($category['description']); ?></p>
-                    <?php endif; ?>
-                    <span class="category-arrow">→</span>
-                </a>
-            <?php endforeach; ?>
-        </div>
-    </div>
-</section>
-
-<!-- Promo Banner -->
-<section class="promo-banner">
-    <div class="container">
-        <div class="promo-content">
-            <div class="promo-text animate-on-scroll">
-                <span class="promo-badge">🔥 Maxsus Taklif</span>
-                <h2>Yangi Kelgan Mahsulotlarga 20% Chegirma!</h2>
-                <p>Birinchi xaridingizda maxsus chegirma olish imkoniyati</p>
-                <a href="#products" class="btn btn-primary btn-lg">
-                    <i class="bi bi-cart-plus"></i>
-                    Xarid Qilish
-                </a>
-            </div>
-            <div class="promo-image animate-on-scroll">
-                <div class="promo-circle"></div>
-                <div class="promo-shape">🎁</div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Products Section -->
-<section class="products-section" id="products">
-    <div class="container">
-        <div class="section-header">
-            <h2>Eng So'nggi Mahsulotlar</h2>
-            <p>Bizning eng yangi va mashhur mahsulotlarimiz</p>
-        </div>
-        
-        <?php if ($products && count($products) > 0): ?>
-            <div class="products-grid">
-                <?php foreach ($products as $product): ?>
-                    <div class="product-card animate-on-scroll">
-                        <div class="product-image">
-                            <?php if ($product['image']): ?>
-                                <img src="<?php echo SITE_URL; ?>/uploads/products/<?php echo htmlspecialchars($product['image']); ?>" 
-                                     alt="<?php echo htmlspecialchars($product['name']); ?>">
-                            <?php else: ?>
-                                <div class="product-placeholder">
-                                    <span>📦</span>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <!-- Favorite Button -->
-                            <?php if (is_logged_in()): ?>
-                                <?php
-                                // Check if favorited
-                                $is_favorited = false;
-                                $fav_check = $db->fetchOne(
-                                    "SELECT id FROM favorites WHERE user_id = ? AND product_id = ?",
-                                    [$_SESSION['user_id'], $product['id']]
-                                );
-                                $is_favorited = !empty($fav_check);
-                                ?>
-                                <button class="favorite-btn <?php echo $is_favorited ? 'active' : ''; ?>" 
-                                        data-product-id="<?php echo $product['id']; ?>">
-                                    <i class="bi bi-heart-fill"></i>
-                                </button>
-                            <?php endif; ?>
-                            
-                            <?php if ($product['stock'] <= 0): ?>
-                                <span class="product-badge out-of-stock">Tugagan</span>
-                            <?php elseif ($product['stock'] < 5): ?>
-                                <span class="product-badge low-stock">Kam qoldi</span>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <div class="product-info">
-                            <span class="product-category"><?php echo htmlspecialchars($product['category_name']); ?></span>
-                            <h3 class="product-name"><?php echo htmlspecialchars($product['name']); ?></h3>
-                            
-                            <?php if ($product['description']): ?>
-                                <p class="product-description">
-                                    <?php echo htmlspecialchars(mb_substr($product['description'], 0, 60)) . '...'; ?>
-                                </p>
-                            <?php endif; ?>
-                            
-                            <div class="product-footer">
-                                <span class="product-price"><?php echo format_price($product['price']); ?></span>
-                                
-                                <?php if ($product['stock'] > 0): ?>
-                                    <?php if (is_logged_in()): ?>
-                                        <button class="btn btn-primary btn-sm add-to-cart" 
-                                                data-product-id="<?php echo $product['id']; ?>">
-                                            Savatchaga
-                                        </button>
-                                    <?php else: ?>
-                                        <a href="<?php echo SITE_URL; ?>/auth/login.php" class="btn btn-secondary btn-sm">
-                                            Kirish
-                                        </a>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <button class="btn btn-disabled btn-sm" disabled>
-                                        Tugagan
-                                    </button>
-                                <?php endif; ?>
+                            <div style="width:64px;height:64px;background:var(--bg);border-radius:12px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;">
+                                <i class="bi bi-folder" style="font-size:1.5rem;color:var(--primary);"></i>
                             </div>
-                        </div>
+                        <?php endif; ?>
+                        <h6 class="mb-1" style="font-weight:600;"><?= sanitize($cat['name']) ?></h6>
+                        <?php if ($cat['description']): ?>
+                            <small class="text-muted"><?= mb_substr(sanitize($cat['description']), 0, 50) ?></small>
+                        <?php endif; ?>
                     </div>
-                <?php endforeach; ?>
+                </a>
             </div>
+            <?php endforeach; ?>
+        </div>
         <?php else: ?>
             <div class="empty-state">
-                <p>Hozircha mahsulotlar yo'q</p>
+                <i class="bi bi-folder-x"></i>
+                <h5>Kategoriyalar topilmadi</h5>
             </div>
         <?php endif; ?>
-    </div>
-</section>
-
-<!-- Newsletter Section -->
-<section class="newsletter-section">
-    <div class="container">
-        <div class="newsletter-content">
-            <div class="newsletter-text">
-                <h2>📧 Yangiliklar uchun obuna bo'ling!</h2>
-                <p>Eng so'nggi mahsulotlar va maxsus takliflardan xabardor bo'ling</p>
+    <?php else: ?>
+        <!-- Hero Slider -->
+        <div id="heroSlider" class="carousel slide hero-slider" data-bs-ride="carousel" data-bs-interval="4000">
+            <div class="carousel-indicators">
+                <button type="button" data-bs-target="#heroSlider" data-bs-slide-to="0" class="active"></button>
+                <button type="button" data-bs-target="#heroSlider" data-bs-slide-to="1"></button>
+                <button type="button" data-bs-target="#heroSlider" data-bs-slide-to="2"></button>
+                <button type="button" data-bs-target="#heroSlider" data-bs-slide-to="3"></button>
             </div>
-            <form class="newsletter-form" id="newsletterForm">
-                <input type="email" placeholder="Email manzilingiz" required>
-                <button type="submit" class="btn btn-primary">
-                    Obuna bo'lish
-                </button>
-            </form>
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <div class="hero-slide" style="background:linear-gradient(135deg, #7000FF, #9B4DFF);">
+                        <div class="slide-content">
+                            <h2>🛍️ Online Shop</h2>
+                            <p>Eng yaxshi narxlarda sifatli mahsulotlar — tez yetkazib berish!</p>
+                            <a href="<?= SITE_URL ?>/?view=catalog" class="btn-hero">
+                                <i class="bi bi-grid-fill"></i> Katalogni ko'rish
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <div class="hero-slide" style="background:linear-gradient(135deg, #FF6B35, #FF9F1C);">
+                        <div class="slide-content">
+                            <h2>🔥 Chegirmalar</h2>
+                            <p>Eng sara mahsulotlarga 50% gacha chegirma!</p>
+                            <a href="<?= SITE_URL ?>/?view=catalog" class="btn-hero">
+                                <i class="bi bi-tag"></i> Xarid qilish
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <div class="hero-slide" style="background:linear-gradient(135deg, #2EC4B6, #00B4D8);">
+                        <div class="slide-content">
+                            <h2>🚚 Bepul yetkazib berish</h2>
+                            <p>Barcha buyurtmalarga bepul yetkazib berish xizmati!</p>
+                            <a href="<?= SITE_URL ?>/?view=catalog" class="btn-hero">
+                                <i class="bi bi-truck"></i> Buyurtma berish
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <div class="hero-slide" style="background:linear-gradient(135deg, #E91E63, #FF5722);">
+                        <div class="slide-content">
+                            <h2>⭐ Yangi mahsulotlar</h2>
+                            <p>Har kuni yangi mahsulotlar — eng so'nggi trendlar!</p>
+                            <a href="<?= SITE_URL ?>/?view=catalog" class="btn-hero">
+                                <i class="bi bi-stars"></i> Ko'rish
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#heroSlider" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon"></span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#heroSlider" data-bs-slide="next">
+                <span class="carousel-control-next-icon"></span>
+            </button>
         </div>
+
+        <!-- Categories Row -->
+        <?php if (!empty($categories)): ?>
+        <div class="section-title">
+            <h2>Kategoriyalar</h2>
+            <a href="<?= SITE_URL ?>/?view=catalog">Hammasi <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;" class="mb-3">
+            <?php foreach ($categories as $cat): ?>
+            <a href="<?= SITE_URL ?>/pages/category.php?id=<?= $cat['id'] ?>" 
+               style="flex-shrink:0;text-align:center;width:100px;">
+                <div style="width:64px;height:64px;margin:0 auto 8px;background:#fff;border-radius:16px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);">
+                    <?php if ($cat['icon']): ?>
+                        <img src="<?= SITE_URL ?>/uploads/categories/<?= $cat['icon'] ?>" 
+                             style="width:40px;height:40px;object-fit:cover;border-radius:8px;">
+                    <?php else: ?>
+                        <i class="bi bi-folder" style="font-size:1.3rem;color:var(--primary);"></i>
+                    <?php endif; ?>
+                </div>
+                <span style="font-size:0.78rem;color:var(--text-dark);font-weight:500;"><?= sanitize($cat['name']) ?></span>
+            </a>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    <?php endif; ?>
+
+    <!-- Products Grid -->
+    <?php if (!$viewCatalog): ?>
+    <div class="section-title">
+        <h2><?= $searchQuery ? '' : 'Tavsiya etamiz' ?></h2>
     </div>
-</section>
 
-<!-- Back to Top Button -->
-<button class="back-to-top" id="backToTop" title="Yuqoriga chiqish">
-    <i class="bi bi-arrow-up"></i>
-</button>
+    <?php if (!empty($products)): ?>
+    <div class="products-grid">
+        <?php foreach ($products as $product): ?>
+        <div class="product-card">
+            <a href="<?= SITE_URL ?>/pages/product.php?id=<?= $product['id'] ?>">
+                <?php if ($product['image']): ?>
+                    <img src="<?= SITE_URL ?>/uploads/products/<?= $product['image'] ?>" 
+                         alt="<?= sanitize($product['name']) ?>" class="card-img">
+                <?php else: ?>
+                    <div class="card-img" style="display:flex;align-items:center;justify-content:center;background:var(--bg);">
+                        <i class="bi bi-image" style="font-size:2rem;color:var(--border);"></i>
+                    </div>
+                <?php endif; ?>
+            </a>
+            <div class="card-body">
+                <div class="card-price">
+                    <?php
+                    $displayPrice = $product['has_sizes'] && $product['min_size_price'] 
+                        ? $product['min_size_price'] 
+                        : $product['price'];
+                    ?>
+                    <?= formatPrice($displayPrice) ?> <span>so'm</span>
+                    <?php if ($product['has_sizes']): ?>
+                        <small style="color:var(--text-light);font-size:0.7rem;">dan</small>
+                    <?php endif; ?>
+                </div>
+                <a href="<?= SITE_URL ?>/pages/product.php?id=<?= $product['id'] ?>" class="card-title">
+                    <?= sanitize($product['name']) ?>
+                </a>
+                <div class="card-actions">
+                    <?php if (isLoggedIn()): ?>
+                        <button class="btn-cart" onclick="addToCart(<?= $product['id'] ?>)">
+                            <i class="bi bi-cart-plus"></i> Savatga
+                        </button>
+                        <button class="btn-fav <?= in_array($product['id'], $userFavorites) ? 'active' : '' ?>" 
+                                onclick="toggleFavorite(<?= $product['id'] ?>, this)">
+                            <i class="bi bi-heart<?= in_array($product['id'], $userFavorites) ? '-fill' : '' ?>"></i>
+                        </button>
+                    <?php else: ?>
+                        <a href="<?= SITE_URL ?>/auth/login.php" class="btn-cart">
+                            <i class="bi bi-cart-plus"></i> Savatga
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php else: ?>
+        <div class="empty-state">
+            <i class="bi bi-search"></i>
+            <h5>Mahsulotlar topilmadi</h5>
+            <p>Boshqa so'rov bilan izlab ko'ring</p>
+        </div>
+    <?php endif; ?>
+    <?php endif; ?>
+</div>
 
-<?php require_once 'includes/footer.php'; ?>
+<?php include __DIR__ . '/includes/footer.php'; ?>

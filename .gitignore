@@ -1,8 +1,0 @@
-.env
-uploads/
-*.log
-vendor/
-.gemini/
-.idea/
-.vscode/
-node_modules/

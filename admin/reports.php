@@ -1,198 +1,169 @@
 <?php
-/**
- * Admin: Hisobotlar
- */
-require_once '../config/config.php';
-require_once '../config/database.php';
-require_once '../includes/session.php';
-require_once '../includes/functions.php';
+require_once __DIR__ . '/../includes/auth.php';
+requireAdmin();
 
-require_admin();
+$statusLabels = [
+    'new' => 'Yangi',
+    'rejected' => 'Rad etildi',
+    'confirmed' => 'Tasdiqlangan',
+    'assembling' => "Yig'ilmoqda",
+    'shipped' => "Jo'natildi",
+    'delivered' => 'Yetkazildi'
+];
 
-$page_title = 'Hisobotlar - Admin Panel';
-$db = Database::getInstance();
+// Date filter
+$dateFrom = isset($_GET['from']) ? $_GET['from'] : date('Y-m-01');
+$dateTo = isset($_GET['to']) ? $_GET['to'] : date('Y-m-d');
 
-// Umumiy statistika
-$total_revenue_sql = "SELECT SUM(total_price) as total FROM orders WHERE status = 'tasdiqlandi'";
-$total_revenue = $db->fetchOne($total_revenue_sql)['total'] ?? 0;
+// Get filtered orders
+$stmt = $pdo->prepare("SELECT * FROM orders WHERE DATE(created_at) BETWEEN ? AND ? ORDER BY created_at DESC");
+$stmt->execute([$dateFrom, $dateTo]);
+$orders = $stmt->fetchAll();
 
-$total_orders_sql = "SELECT COUNT(*) as total FROM orders WHERE status = 'tasdiqlandi'";
-$total_orders = $db->fetchOne($total_orders_sql)['total'] ?? 0;
+// Summary stats
+$totalOrders = count($orders);
+$totalRevenue = 0;
+$statusCounts = array_fill_keys(array_keys($statusLabels), 0);
 
-// Kategoriya bo'yicha sotuvlar
-$category_sales_sql = "SELECT c.name, COUNT(DISTINCT oi.order_id) as order_count, SUM(oi.quantity) as total_sold, SUM(oi.quantity * oi.price) as revenue
-                       FROM categories c
-                       LEFT JOIN products p ON c.id = p.category_id
-                       LEFT JOIN order_items oi ON p.id = oi.product_id
-                       LEFT JOIN orders o ON oi.order_id = o.id
-                       WHERE o.status = 'tasdiqlandi' OR o.status IS NULL
-                       GROUP BY c.id, c.name
-                       ORDER BY revenue DESC";
-$category_sales = $db->fetchAll($category_sales_sql);
+foreach ($orders as $order) {
+    if ($order['status'] !== 'rejected') {
+        $totalRevenue += $order['total_amount'];
+    }
+    $statusCounts[$order['status']]++;
+}
 
-// Eng ko'p sotilgan mahsulotlar
-$top_products_sql = "SELECT p.name, SUM(oi.quantity) as total_sold, SUM(oi.quantity * oi.price) as revenue
-                     FROM products p
-                     JOIN order_items oi ON p.id = oi.product_id
-                     JOIN orders o ON oi.order_id = o.id
-                     WHERE o.status = 'tasdiqlandi'
-                     GROUP BY p.id, p.name
-                     ORDER BY total_sold DESC
-                     LIMIT 10";
-$top_products = $db->fetchAll($top_products_sql);
-
-// Oxirgi 30 kun statistikasi
-$daily_sales_sql = "SELECT DATE(created_at) as date, COUNT(*) as orders, SUM(total_price) as revenue
-                    FROM orders
-                    WHERE status = 'tasdiqlandi' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                    GROUP BY DATE(created_at)
-                    ORDER BY date ASC";
-$daily_sales = $db->fetchAll($daily_sales_sql);
-
-require_once 'includes/header.php';
+$adminPageTitle = 'Hisobotlar';
+include __DIR__ . '/includes/header.php';
+include __DIR__ . '/includes/sidebar.php';
 ?>
 
-<div class="admin-header">
-    <h1>Hisobotlar va Statistika</h1>
-</div>
+<div class="admin-content">
+    <div class="admin-header">
+        <div>
+            <button class="btn btn-sm btn-outline-secondary d-lg-none me-2" onclick="toggleAdminSidebar()">
+                <i class="bi bi-list"></i>
+            </button>
+            <h3 class="d-inline"><i class="bi bi-graph-up"></i> Hisobotlar</h3>
+        </div>
+        <form method="GET" class="d-flex gap-2 align-items-center">
+            <label class="text-muted" style="font-size:0.85rem;white-space:nowrap;">Sanadan:</label>
+            <input type="date" name="from" class="form-control form-control-sm" value="<?= $dateFrom ?>" style="width:150px;">
+            <label class="text-muted" style="font-size:0.85rem;white-space:nowrap;">Sanagacha:</label>
+            <input type="date" name="to" class="form-control form-control-sm" value="<?= $dateTo ?>" style="width:150px;">
+            <button class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Ko'rsatish</button>
+        </form>
+    </div>
 
-<!-- Umumiy Statistika -->
-<div class="stats-grid">
-    <div class="stat-card stat-revenue">
-        <div class="stat-icon">💰</div>
-        <div class="stat-info">
-            <h3><?php echo format_price($total_revenue); ?></h3>
-            <p>Jami Daromad</p>
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:rgba(112,0,255,0.1);color:var(--primary);">
+                    <i class="bi bi-receipt"></i>
+                </div>
+                <div class="stat-number"><?= $totalOrders ?></div>
+                <div class="stat-label">Jami buyurtmalar</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:rgba(40,167,69,0.1);color:var(--success);">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+                <div class="stat-number"><?= formatPrice($totalRevenue) ?></div>
+                <div class="stat-label">Jami daromad (so'm)</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:rgba(23,162,184,0.1);color:var(--info);">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div class="stat-number"><?= $statusCounts['delivered'] ?></div>
+                <div class="stat-label">Yetkazilgan</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:rgba(220,53,69,0.1);color:var(--danger);">
+                    <i class="bi bi-x-circle"></i>
+                </div>
+                <div class="stat-number"><?= $statusCounts['rejected'] ?></div>
+                <div class="stat-label">Rad etilgan</div>
+            </div>
         </div>
     </div>
-    
-    <div class="stat-card stat-success">
-        <div class="stat-icon">✅</div>
-        <div class="stat-info">
-            <h3><?php echo number_format($total_orders); ?></h3>
-            <p>Tasdiqlangan Buyurtmalar</p>
-        </div>
-    </div>
-    
-    <div class="stat-card stat-info">
-        <div class="stat-icon">📊</div>
-        <div class="stat-info">
-            <h3><?php echo $total_orders > 0 ? format_price($total_revenue / $total_orders) : '0 so\'m'; ?></h3>
-            <p>O'rtacha Buyurtma</p>
-        </div>
-    </div>
-</div>
 
-<!-- Kategoriya bo'yicha sotuvlar -->
-<div class="admin-card">
-    <div class="card-header">
-        <h2>Kategoriya bo'yicha Sotuvlar</h2>
+    <!-- Status Breakdown -->
+    <div class="admin-table mb-4">
+        <div class="p-3">
+            <h6 class="fw-bold mb-3">Buyurtmalar holati bo'yicha</h6>
+            <div class="row g-2">
+                <?php foreach ($statusLabels as $key => $label): ?>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <div class="text-center p-2" style="background:var(--bg);border-radius:var(--radius-sm);">
+                        <div class="fw-bold" style="font-size:1.3rem;"><?= $statusCounts[$key] ?></div>
+                        <span class="order-status-badge status-<?= $key ?>"><?= $label ?></span>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
     </div>
-    <div class="table-responsive">
-        <?php if ($category_sales && count($category_sales) > 0): ?>
-            <table class="admin-table">
-                <thead>
+
+    <!-- Orders Table -->
+    <div class="admin-table">
+        <div class="p-3">
+            <h6 class="fw-bold mb-0">
+                Buyurtmalar ro'yxati 
+                <span class="text-muted fw-normal">(<?= date('d.m.Y', strtotime($dateFrom)) ?> — <?= date('d.m.Y', strtotime($dateTo)) ?>)</span>
+            </h6>
+        </div>
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Mijoz</th>
+                    <th>Telefon</th>
+                    <th>Manzil</th>
+                    <th>Summa</th>
+                    <th>Status</th>
+                    <th>Sana</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($orders)): ?>
+                    <tr><td colspan="7" class="text-center text-muted py-4">Bu sanalar oralig'ida buyurtmalar topilmadi</td></tr>
+                <?php else: ?>
+                    <?php foreach ($orders as $order): ?>
                     <tr>
-                        <th>Kategoriya</th>
-                        <th>Buyurtmalar</th>
-                        <th>Sotilgan miqdor</th>
-                        <th>Daromad</th>
+                        <td><strong>#<?= $order['id'] ?></strong></td>
+                        <td><?= sanitize($order['full_name']) ?></td>
+                        <td>
+                            <a href="tel:<?= $order['phone'] ?>" style="color:var(--primary);">
+                                <?= sanitize($order['phone']) ?>
+                            </a>
+                        </td>
+                        <td class="text-muted" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            <?= sanitize($order['address']) ?>
+                        </td>
+                        <td><strong><?= formatPrice($order['total_amount']) ?></strong></td>
+                        <td>
+                            <span class="order-status-badge status-<?= $order['status'] ?>">
+                                <?= $statusLabels[$order['status']] ?>
+                            </span>
+                        </td>
+                        <td class="text-muted"><?= date('d.m.Y H:i', strtotime($order['created_at'])) ?></td>
                     </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($category_sales as $cat): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($cat['name']); ?></td>
-                            <td><?php echo number_format($cat['order_count'] ?? 0); ?></td>
-                            <td><?php echo number_format($cat['total_sold'] ?? 0); ?> dona</td>
-                            <td><?php echo format_price($cat['revenue'] ?? 0); ?></td>
-                        </tr>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <p class="text-center">Ma'lumot yo'q</p>
-        <?php endif; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
     </div>
 </div>
 
-<!-- Eng ko'p sotilgan mahsulotlar -->
-<div class="admin-card">
-    <div class="card-header">
-        <h2>Top 10 Mahsulotlar</h2>
-    </div>
-    <div class="table-responsive">
-        <?php if ($top_products && count($top_products) > 0): ?>
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Mahsulot</th>
-                        <th>Sotilgan</th>
-                        <th>Daromad</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php $i = 1; foreach ($top_products as $product): ?>
-                        <tr>
-                            <td><?php echo $i++; ?></td>
-                            <td><?php echo htmlspecialchars($product['name']); ?></td>
-                            <td><?php echo number_format($product['total_sold']); ?> dona</td>
-                            <td><?php echo format_price($product['revenue']); ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <p class="text-center">Ma'lumot yo'q</p>
-        <?php endif; ?>
-    </div>
 </div>
-
-<!-- Kunlik Sotuvlar Grafigi (Chart.js) -->
-<div class="admin-card">
-    <div class="card-header">
-        <h2>Oxirgi 30 Kun Sotuvlari</h2>
-    </div>
-    <canvas id="salesChart" width="400" height="100"></canvas>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Chart data
-const salesData = <?php echo json_encode($daily_sales); ?>;
-const dates = salesData.map(item => item.date);
-const revenues = salesData.map(item => parseFloat(item.revenue));
-
-// Chart
-const ctx = document.getElementById('salesChart').getContext('2d');
-new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: dates,
-        datasets: [{
-            label: 'Daromad (so\'m)',
-            data: revenues,
-            borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            tension: 0.1
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: {
-                display: true
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
-    }
-});
-</script>
-
-<?php require_once 'includes/footer.php'; ?>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?= SITE_URL ?>/assets/js/main.js"></script>
+</body>
+</html>
