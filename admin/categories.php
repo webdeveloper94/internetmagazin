@@ -86,7 +86,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$categories = $pdo->query("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count FROM categories c ORDER BY c.name")->fetchAll();
+// Search & Pagination
+$search = isset($_GET['q']) ? trim($_GET['q']) : '';
+$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$perPage = 20;
+$offset = ($page - 1) * $perPage;
+
+$where = '';
+$params = [];
+if ($search) {
+    $where = " WHERE name LIKE ?";
+    $params[] = "%$search%";
+}
+
+$totalStmt = $pdo->prepare("SELECT COUNT(*) FROM categories" . $where);
+$totalStmt->execute($params);
+$totalCategories = $totalStmt->fetchColumn();
+$totalPages = ceil($totalCategories / $perPage);
+
+$query = "SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count FROM categories c" . $where . " ORDER BY c.name LIMIT ? OFFSET ?";
+$stmt = $pdo->prepare($query);
+foreach ($params as $i => $p) {
+    $stmt->bindValue($i + 1, $p);
+}
+$stmt->bindValue(count($params) + 1, $perPage, PDO::PARAM_INT);
+$stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
+$stmt->execute();
+$categories = $stmt->fetchAll();
 
 $adminPageTitle = 'Kategoriyalar';
 include __DIR__ . '/includes/header.php';
@@ -101,9 +127,15 @@ include __DIR__ . '/includes/sidebar.php';
             </button>
             <h3 class="d-inline"><i class="bi bi-grid"></i> Kategoriyalar</h3>
         </div>
-        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-            <i class="bi bi-plus-lg"></i> Qo'shish
-        </button>
+        <div class="d-flex gap-2">
+            <form method="GET" class="d-flex gap-2">
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="Qidiruv..." value="<?= sanitize($search) ?>" style="width:200px;">
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i></button>
+            </form>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                <i class="bi bi-plus-lg"></i> Qo'shish
+            </button>
+        </div>
     </div>
 
     <?php if ($message): ?>
@@ -198,6 +230,26 @@ include __DIR__ . '/includes/sidebar.php';
             </tbody>
         </table>
     </div>
+
+    <?php if ($totalPages > 1): ?>
+    <nav class="mt-4">
+        <ul class="pagination pagination-sm justify-content-center">
+            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                <a class="page-link" href="?page=<?= $page - 1 ?><?= $search ? "&q=" . urlencode($search) : "" ?>">Oldingi</a>
+            </li>
+            
+            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                <li class="page-item <?= $i == $page ? 'active' : '' ?>">
+                    <a class="page-link" href="?page=<?= $i ?><?= $search ? "&q=" . urlencode($search) : "" ?>"><?= $i ?></a>
+                </li>
+            <?php endfor; ?>
+
+            <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                <a class="page-link" href="?page=<?= $page + 1 ?><?= $search ? "&q=" . urlencode($search) : "" ?>">Keyingi</a>
+            </li>
+        </ul>
+    </nav>
+    <?php endif; ?>
 </div>
 
 <!-- Add Category Modal -->

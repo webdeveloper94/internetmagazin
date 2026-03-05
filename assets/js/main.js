@@ -192,3 +192,27 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+
+// ===== Card Slider (mini image carousel) =====
+function slideCard(sliderId, direction) {
+    const slider = document.getElementById(sliderId);
+    if (!slider) return;
+    const slides = slider.querySelectorAll('.card-slide');
+    const dots = slider.querySelectorAll('.card-dot');
+    let current = 0;
+    slides.forEach((s, i) => { if (s.classList.contains('active')) current = i; });
+
+    let next;
+    if (direction === 'prev') {
+        next = (current - 1 + slides.length) % slides.length;
+    } else if (direction === 'next') {
+        next = (current + 1) % slides.length;
+    } else {
+        next = parseInt(direction);
+    }
+
+    slides[current].classList.remove('active');
+    dots[current].classList.remove('active');
+    slides[next].classList.add('active');
+    dots[next].classList.add('active');
+}

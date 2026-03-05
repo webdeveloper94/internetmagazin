@@ -15,7 +15,7 @@ $navCategories = $catStmt->fetchAll();
             <!-- Logo -->
             <a href="<?= SITE_URL ?>" class="navbar-logo">
                 <i class="bi bi-shop"></i>
-                Online Shop
+                <span>Online Shop</span>
             </a>
 
             <!-- Catalog Button -->
@@ -26,23 +26,33 @@ $navCategories = $catStmt->fetchAll();
 
             <!-- Search -->
             <form class="search-box" id="searchForm" action="<?= SITE_URL ?>" method="GET">
-                <input type="text" name="q" placeholder="Mahsulotlarni izlash..." value="<?= isset($_GET['q']) ? sanitize($_GET['q']) : '' ?>">
+                <input type="text" name="q" placeholder="Mahsulotlar va turkumlar izlash" value="<?= isset($_GET['q']) ? sanitize($_GET['q']) : '' ?>">
                 <button type="submit"><i class="bi bi-search"></i></button>
             </form>
 
             <!-- Action Buttons -->
             <div class="navbar-actions">
                 <?php if (isLoggedIn()): ?>
+                    <?php if (isAdmin()): ?>
+                        <a href="<?= SITE_URL ?>/admin/" class="nav-action-btn">
+                            <i class="bi bi-gear"></i>
+                            <span>Admin</span>
+                        </a>
+                    <?php endif; ?>
+                    <a href="<?= SITE_URL ?>/pages/profile.php" class="nav-action-btn">
+                        <i class="bi bi-person"></i>
+                        <span>Kirish</span>
+                    </a>
                     <a href="<?= SITE_URL ?>/pages/favorites.php" class="nav-action-btn">
                         <i class="bi bi-heart"></i>
-                        <span>Sevimlilar</span>
+                        <span>Saralangan</span>
                         <?php if ($favCount > 0): ?>
                             <span class="nav-badge fav-badge"><?= $favCount ?></span>
                         <?php else: ?>
                             <span class="nav-badge fav-badge" style="display:none">0</span>
                         <?php endif; ?>
                     </a>
-                    <a href="<?= SITE_URL ?>/pages/cart.php" class="nav-action-btn">
+                    <a href="<?= SITE_URL ?>/pages/cart.php" class="nav-action-btn nav-cart-btn">
                         <i class="bi bi-cart3"></i>
                         <span>Savat</span>
                         <?php if ($cartCount > 0): ?>
@@ -51,20 +61,18 @@ $navCategories = $catStmt->fetchAll();
                             <span class="nav-badge cart-badge" style="display:none">0</span>
                         <?php endif; ?>
                     </a>
-                    <?php if (isAdmin()): ?>
-                        <a href="<?= SITE_URL ?>/admin/" class="nav-action-btn">
-                            <i class="bi bi-gear"></i>
-                            <span>Admin</span>
-                        </a>
-                    <?php endif; ?>
-                    <a href="<?= SITE_URL ?>/pages/profile.php" class="nav-action-btn">
-                        <i class="bi bi-person-circle"></i>
-                        <span>Profil</span>
-                    </a>
                 <?php else: ?>
                     <a href="<?= SITE_URL ?>/auth/login.php" class="nav-action-btn">
-                        <i class="bi bi-box-arrow-in-right"></i>
+                        <i class="bi bi-person"></i>
                         <span>Kirish</span>
+                    </a>
+                    <a href="<?= SITE_URL ?>/auth/login.php" class="nav-action-btn">
+                        <i class="bi bi-heart"></i>
+                        <span>Saralangan</span>
+                    </a>
+                    <a href="<?= SITE_URL ?>/auth/login.php" class="nav-action-btn nav-cart-btn">
+                        <i class="bi bi-cart3"></i>
+                        <span>Savat</span>
                     </a>
                 <?php endif; ?>
             </div>
@@ -78,7 +86,7 @@ $navCategories = $catStmt->fetchAll();
     <div class="container">
         <ul class="categories-list">
             <li>
-                <a href="<?= SITE_URL ?>" class="<?= !isset($_GET['category']) ? 'active' : '' ?>">
+                <a href="<?= SITE_URL ?>" class="<?= !isset($_GET['category']) && !isset($_GET['id']) ? 'active' : '' ?>">
                     <i class="bi bi-grid"></i> Hammasi
                 </a>
             </li>
