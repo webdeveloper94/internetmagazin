@@ -346,11 +346,34 @@ img {
     position: relative;
 }
 
+.hero-slide .slide-bg-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    z-index: 1;
+}
+
+.hero-slide::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    z-index: 1;
+}
+
 .hero-slide .slide-content {
     color: #fff;
     text-align: center;
     max-width: 600px;
     z-index: 2;
+    position: relative;
 }
 
 .hero-slide .slide-content h2 {

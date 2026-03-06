@@ -538,5 +538,4 @@ function addSizeRowTo(containerId) {
     container.appendChild(row);
 }
 </script>
-</body>
-</html>
+<?php include __DIR__ . '/includes/footer.php'; ?>

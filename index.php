@@ -44,6 +44,9 @@ $cheapProducts = array_slice($products, 20, 10);
 $remainingProducts = array_slice($products, 30);
 $loadMoreOffset = 30;
 
+// Get active sliders
+$sliders = $pdo->query("SELECT * FROM home_sliders WHERE status = 1 ORDER BY sort_order ASC, id DESC")->fetchAll();
+
 include __DIR__ . '/includes/header.php';
 include __DIR__ . '/includes/navbar.php';
 ?>
@@ -90,58 +93,34 @@ include __DIR__ . '/includes/navbar.php';
         <?php endif; ?>
     <?php else: ?>
         <!-- Hero Slider -->
-        <div id="heroSlider" class="carousel slide hero-slider" data-bs-ride="carousel" data-bs-interval="4000">
+        <?php if (!empty($sliders)): ?>
+        <div id="heroSlider" class="carousel slide hero-slider" data-bs-ride="carousel" data-bs-interval="5000">
             <div class="carousel-indicators">
-                <button type="button" data-bs-target="#heroSlider" data-bs-slide-to="0" class="active"></button>
-                <button type="button" data-bs-target="#heroSlider" data-bs-slide-to="1"></button>
-                <button type="button" data-bs-target="#heroSlider" data-bs-slide-to="2"></button>
-                <button type="button" data-bs-target="#heroSlider" data-bs-slide-to="3"></button>
+                <?php foreach ($sliders as $index => $slide): ?>
+                    <button type="button" data-bs-target="#heroSlider" data-bs-slide-to="<?= $index ?>" class="<?= $index === 0 ? 'active' : '' ?>"></button>
+                <?php endforeach; ?>
             </div>
             <div class="carousel-inner">
-                <div class="carousel-item active">
-                    <div class="hero-slide" style="background:linear-gradient(135deg, #7000FF, #9B4DFF);">
+                <?php foreach ($sliders as $index => $slide): ?>
+                <div class="carousel-item <?= $index === 0 ? 'active' : '' ?>">
+                    <div class="hero-slide" style="background: <?= $slide['bg_color'] ?>;">
+                        <?php if ($slide['image']): ?>
+                            <div class="slide-bg-image" style="background-image: url('<?= SITE_URL ?>/uploads/sliders/<?= $slide['image'] ?>')"></div>
+                        <?php endif; ?>
                         <div class="slide-content">
-                            <h2>🛍️ Online Shop</h2>
-                            <p>Eng yaxshi narxlarda sifatli mahsulotlar — tez yetkazib berish!</p>
-                            <a href="<?= SITE_URL ?>/?view=catalog" class="btn-hero">
-                                <i class="bi bi-grid-fill"></i> Katalogni ko'rish
-                            </a>
+                            <h2><?= sanitize($slide['title']) ?></h2>
+                            <?php if ($slide['subtitle']): ?>
+                                <p><?= sanitize($slide['subtitle']) ?></p>
+                            <?php endif; ?>
+                            <?php if ($slide['btn_text']): ?>
+                                <a href="<?= SITE_URL . sanitize($slide['btn_link']) ?>" class="btn-hero">
+                                    <i class="bi bi-arrow-right-circle"></i> <?= sanitize($slide['btn_text']) ?>
+                                </a>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
-                <div class="carousel-item">
-                    <div class="hero-slide" style="background:linear-gradient(135deg, #FF6B35, #FF9F1C);">
-                        <div class="slide-content">
-                            <h2>🔥 Chegirmalar</h2>
-                            <p>Eng sara mahsulotlarga 50% gacha chegirma!</p>
-                            <a href="<?= SITE_URL ?>/?view=catalog" class="btn-hero">
-                                <i class="bi bi-tag"></i> Xarid qilish
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="carousel-item">
-                    <div class="hero-slide" style="background:linear-gradient(135deg, #2EC4B6, #00B4D8);">
-                        <div class="slide-content">
-                            <h2>🚚 Bepul yetkazib berish</h2>
-                            <p>Barcha buyurtmalarga bepul yetkazib berish xizmati!</p>
-                            <a href="<?= SITE_URL ?>/?view=catalog" class="btn-hero">
-                                <i class="bi bi-truck"></i> Buyurtma berish
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="carousel-item">
-                    <div class="hero-slide" style="background:linear-gradient(135deg, #E91E63, #FF5722);">
-                        <div class="slide-content">
-                            <h2>⭐ Yangi mahsulotlar</h2>
-                            <p>Har kuni yangi mahsulotlar — eng so'nggi trendlar!</p>
-                            <a href="<?= SITE_URL ?>/?view=catalog" class="btn-hero">
-                                <i class="bi bi-stars"></i> Ko'rish
-                            </a>
-                        </div>
-                    </div>
-                </div>
+                <?php endforeach; ?>
             </div>
             <button class="carousel-control-prev" type="button" data-bs-target="#heroSlider" data-bs-slide="prev">
                 <span class="carousel-control-prev-icon"></span>
@@ -150,6 +129,7 @@ include __DIR__ . '/includes/navbar.php';
                 <span class="carousel-control-next-icon"></span>
             </button>
         </div>
+        <?php endif; ?>
 
         <!-- Categories Row -->
         <?php if (!empty($categories)): ?>
