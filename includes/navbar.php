@@ -41,7 +41,7 @@ $navCategories = $catStmt->fetchAll();
                     <?php endif; ?>
                     <a href="<?= SITE_URL ?>/pages/profile.php" class="nav-action-btn">
                         <i class="bi bi-person"></i>
-                        <span>Kirish</span>
+                        <span>Profil</span>
                     </a>
                     <a href="<?= SITE_URL ?>/pages/favorites.php" class="nav-action-btn">
                         <i class="bi bi-heart"></i>

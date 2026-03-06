@@ -41,6 +41,11 @@ $currentPage = basename($_SERVER['PHP_SELF'], '.php');
                 <i class="bi bi-images"></i> Slayderlar
             </a>
         </li>
+        <li>
+            <a href="<?= SITE_URL ?>/admin/settings.php" class="<?= $currentPage === 'settings' ? 'active' : '' ?>">
+                <i class="bi bi-gear"></i> Sozlamalar
+            </a>
+        </li>
         <li style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;">
             <a href="<?= SITE_URL ?>">
                 <i class="bi bi-house"></i> Saytga qaytish

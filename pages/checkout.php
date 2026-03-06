@@ -64,6 +64,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
             $success = true;
+
+            // Send Telegram Notification
+            try {
+                require_once __DIR__ . '/../includes/telegram_helper.php';
+                sendOrderNotification($orderId);
+            } catch (Exception $tgEx) {
+                // Ignore TG errors to not break the user experience
+            }
         } catch (Exception $e) {
             $pdo->rollBack();
             $error = "Xatolik yuz berdi. Qaytadan urinib ko'ring.";
