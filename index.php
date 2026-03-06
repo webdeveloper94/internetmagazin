@@ -113,7 +113,17 @@ include __DIR__ . '/includes/navbar.php';
                                 <p><?= sanitize($slide['subtitle']) ?></p>
                             <?php endif; ?>
                             <?php if ($slide['btn_text']): ?>
-                                <a href="<?= SITE_URL . sanitize($slide['btn_link']) ?>" class="btn-hero">
+                                <?php 
+                                    $link = sanitize($slide['btn_link']);
+                                    // If link is external (starts with http://, https://, //)
+                                    if (preg_match('/^(https?:\/\/|\/\/)/i', $link)) {
+                                        $finalLink = $link;
+                                    } else {
+                                        // Internal link - ensure it starts with / if not already
+                                        $finalLink = SITE_URL . (str_starts_with($link, '/') ? '' : '/') . $link;
+                                    }
+                                ?>
+                                <a href="<?= $finalLink ?>" class="btn-hero">
                                     <i class="bi bi-arrow-right-circle"></i> <?= sanitize($slide['btn_text']) ?>
                                 </a>
                             <?php endif; ?>

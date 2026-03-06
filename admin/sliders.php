@@ -46,7 +46,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("UPDATE home_sliders SET title = ?, subtitle = ?, bg_color = ?, btn_text = ?, btn_link = ?, sort_order = ?, status = ? WHERE id = ?");
         $stmt->execute([$title, $subtitle, $bg_color, $btn_text, $btn_link, $sort_order, $status, $id]);
 
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === 0) {
+        if (isset($_POST['remove_image']) && $_POST['remove_image'] === '1') {
+            $stmt = $pdo->prepare("SELECT image FROM home_sliders WHERE id = ?");
+            $stmt->execute([$id]);
+            $oldImage = $stmt->fetchColumn();
+            if ($oldImage && file_exists(__DIR__ . '/../uploads/sliders/' . $oldImage)) {
+                unlink(__DIR__ . '/../uploads/sliders/' . $oldImage);
+            }
+            $pdo->prepare("UPDATE home_sliders SET image = '' WHERE id = ?")->execute([$id]);
+        } elseif (isset($_FILES['image']) && $_FILES['image']['error'] === 0) {
             $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
             $image = 'slider_' . time() . '.' . $ext;
             if (move_uploaded_file($_FILES['image']['tmp_name'], __DIR__ . '/../uploads/sliders/' . $image)) {
@@ -174,6 +182,15 @@ include __DIR__ . '/includes/sidebar.php';
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label">Background rasm (ixtiyoriy)</label>
+                                                    <?php if ($slide['image']): ?>
+                                                        <div class="mb-2 d-flex align-items-center gap-2">
+                                                            <img src="<?= SITE_URL ?>/uploads/sliders/<?= $slide['image'] ?>" style="height:50px; border-radius:4px;">
+                                                            <div class="form-check">
+                                                                <input class="form-check-input" type="checkbox" name="remove_image" value="1" id="rmImg<?= $slide['id'] ?>">
+                                                                <label class="form-check-label text-danger" for="rmImg<?= $slide['id'] ?>" style="font-size:0.85rem;">Rasmni olib tashlash</label>
+                                                            </div>
+                                                        </div>
+                                                    <?php endif; ?>
                                                     <input type="file" name="image" class="form-control" accept="image/*">
                                                 </div>
                                                 <div class="row">
@@ -184,6 +201,7 @@ include __DIR__ . '/includes/sidebar.php';
                                                     <div class="col-6 mb-3">
                                                         <label class="form-label">Tugma havolasi</label>
                                                         <input type="text" name="btn_link" class="form-control" value="<?= sanitize($slide['btn_link']) ?>">
+                                                        <div class="form-text" style="font-size:0.7rem;">Masalan: <code>/?view=catalog</code> yoki <code>https://google.com</code></div>
                                                     </div>
                                                 </div>
                                                 <div class="row">
@@ -252,6 +270,7 @@ include __DIR__ . '/includes/sidebar.php';
                         <div class="col-6 mb-3">
                             <label class="form-label">Tugma havolasi</label>
                             <input type="text" name="btn_link" class="form-control" value="/?view=catalog">
+                            <div class="form-text" style="font-size:0.7rem;">Masalan: <code>/?view=catalog</code> yoki <code>https://google.com</code></div>
                         </div>
                     </div>
                     <div class="mb-3">
