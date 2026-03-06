@@ -27,8 +27,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Filter
-$filterStatus = isset($_GET['status']) ? $_GET['status'] : '';
+// Default filter to 'new' if not set
+$filterStatus = isset($_GET['status']) ? $_GET['status'] : 'new';
+
+// Get counts for each status
+$counts = [];
+foreach ($statusLabels as $key => $label) {
+    $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE status = ?");
+    $stmtCount->execute([$key]);
+    $counts[$key] = $stmtCount->fetchColumn();
+}
+$totalOrdersCount = $pdo->query("SELECT COUNT(*) FROM orders")->fetchColumn();
+
+// Filter orders
 if ($filterStatus && array_key_exists($filterStatus, $statusLabels)) {
     $stmt = $pdo->prepare("SELECT o.*, u.full_name as user_name FROM orders o JOIN users u ON o.user_id = u.id WHERE o.status = ? ORDER BY o.created_at DESC");
     $stmt->execute([$filterStatus]);
@@ -50,14 +61,18 @@ include __DIR__ . '/includes/sidebar.php';
             </button>
             <h3 class="d-inline"><i class="bi bi-receipt"></i> Buyurtmalar</h3>
         </div>
-        <form method="GET" class="d-flex gap-2">
-            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width:180px;">
-                <option value="">Barcha statuslar</option>
-                <?php foreach ($statusLabels as $key => $label): ?>
-                    <option value="<?= $key ?>" <?= $filterStatus === $key ? 'selected' : '' ?>><?= $label ?></option>
-                <?php endforeach; ?>
-            </select>
-        </form>
+    </div>
+
+    <!-- Status Tabs -->
+    <div class="d-flex flex-wrap gap-2 mb-4 mt-2">
+        <a href="?status=" class="btn btn-sm <?= $filterStatus === '' ? 'btn-primary' : 'btn-outline-secondary' ?>">
+            Barchasi <span class="badge bg-light text-dark ms-1"><?= $totalOrdersCount ?></span>
+        </a>
+        <?php foreach ($statusLabels as $key => $label): ?>
+            <a href="?status=<?= $key ?>" class="btn btn-sm <?= $filterStatus === $key ? 'btn-primary' : 'btn-outline-secondary' ?>">
+                <?= $label ?> <span class="badge bg-light text-dark ms-1"><?= $counts[$key] ?></span>
+            </a>
+        <?php endforeach; ?>
     </div>
 
     <?php if ($message): ?>
